@@ -2,9 +2,11 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/anthonypz/rss-aggregator/internal/database"
 	"github.com/go-chi/chi/v5"
@@ -19,6 +21,12 @@ type apiConfig struct {
 }
 
 func main() {
+	feed, err := urlToFeed("https://wagslane.dev/index.xml")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(feed)
+
 	godotenv.Load(".env")
 
 	port := os.Getenv("PORT")
@@ -31,14 +39,17 @@ func main() {
 		log.Fatal("DATABASE_URL environment variable is not set")
 	}
 
-	db, err := sql.Open("postgres", dbURL)
+	conn, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	db := database.New(conn)
 	apiCfg := apiConfig{
-		DB: database.New(db),
+		DB: db,
 	}
+
+	startScraping(db, 10, time.Minute)
 
 	router := chi.NewRouter()
 
